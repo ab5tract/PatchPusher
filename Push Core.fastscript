@@ -1,0 +1,498 @@
+//////////////////////////
+// 
+/////////////////////////
+// parameters declaration
+        
+// ----- ----- ---- ----- Notes 
+   
+// values related to notes
+const PADS                  = 64;
+const ROWS                  = 8;
+const COLUMNS               = 8;
+const PAD_FIRST_NOTE        = 36;
+
+type PushColor = Record
+    Name  : String;
+    Value : Integer;
+end;
+
+type PadState = Record
+	midi  : tMidi;
+	color : PadColor;
+	note  : Integer;
+end;
+
+type inputTriad = Record
+    Name  : String;
+    Value : Integer;
+    param : tParameter;
+end;
+
+type touchRotaryArray = array [0..9] of inputTriad;
+
+type notePadStateArray     = array [0..PADS-1] of PadState;
+ 
+// modulation options
+const PITCH_BEND            = 12; // sends PB data too
+const TOUCH_ENCODER_TEMPO   = 10;
+const TOUCH_ROTARY_QUANTIZE = 9;
+const TOUCH_ROTARY_1        = 0;
+const TOUCH_ROTARY_2        = 1;
+const TOUCH_ROTARY_3        = 2;   
+const TOUCH_ROTARY_4        = 3;
+const TOUCH_ROTARY_5        = 4;   
+const TOUCH_ROTARY_6        = 5;   
+const TOUCH_ROTARY_7        = 6;   
+const TOUCH_ROTARY_8        = 7;   
+const TOUCH_ROTARY_VOLUME   = 8;   
+                       
+// ----- ----- ---- ----- CCs  
+                               
+// playback control
+const PLAY                  = 85;
+const RECORD_               = 86; // RECORD seems to be a keyword
+const TAP_TEMPO             = 3;
+const METRONOME             = 9;   
+const ROTARY_QUANTIZE       = 15;
+const ENCODER_TEMPO         = 14; 
+
+                                  
+// quantization buttons
+const QUARTER               = 36;
+const QUARTER_TRIPLET       = 37;
+const EIGHTH                = 38;
+const EIGHTH_TRIPLET        = 39;
+const SIXTEENTH             = 40;
+const SIXTEENTH_TRIPLET     = 41;
+const THIRTY_SECOND         = 42;
+const THIRTY_SECOND_TRIPLET = 43;
+
+// surface modifier keys    
+const OCTAVE_UP             = 54;
+const OCTAVE_DOWN           = 55;
+const REPEAT_               = 56; // same with REPEAT
+const ACCENT                = 57;
+const SCALES                = 58;
+const USER                  = 59;
+const MUTE                  = 60;
+const SOLO                  = 61;
+
+// display mode keys
+const BROWSE_FORWARD        = 62;
+const BROWSE_BACK           = 63;
+const DEVICE                = 110;
+const BROWSE                = 111;
+const RACK                  = 112;
+const CLIP                  = 113;
+const VOLUME                = 114; 
+const PAN_SEND              = 115;
+const MASTER                = 28;
+const STOP                  = 29;
+                    
+// modifier pads 
+// ---- row 1: 20 - 27
+// ---- row 2: 102 - 109
+ 
+// arrow keys
+const ARROW_LEFT            = 44; 
+const ARROW_RIGHT           = 45;             
+const ARROW_UP              = 46;
+const ARROW_DOWN            = 47;
+
+// clip management                            
+const NEW_                  = 87;
+const DUPLICATE             = 88; 
+const AUTOMATION            = 89; 
+const FIXED_LENGTH          = 90;    
+const QUANTIZE              = 116;              
+const DOUBLE_               = 117; 
+const DELETE_               = 118;                        
+const UNDO                  = 119;    
+                         
+// ----- ----- ---- ----- Colors         
+
+
+const NumberOfColors         = 18;
+const NumberOfColorsCC       = 8;
+
+var ccPadColors : array [0..NumberOfColorsCC-1] of pushColor;
+const ccHALF                 = 1;     
+const ccHALF_BLINK_SLOW      = 2;
+const ccHALF_BLINK_FAST      = 3;
+const ccFULL                 = 4;
+const ccFULL_BLINK_SLOW      = 5; 
+const ccFULL_BLINK_FAST      = 6;   
+const ccOFF                  = 0;   
+const ccON                   = 127;   
+                                                  
+var padColors : array [0..NumberOfColors-1] of pushColor; 
+const BLACK_ 		     = 0;
+const DARK_GREY 	     = 1;
+const GREY 		     = 2;
+const WHITE_ 		     = 3;
+const RED_ 		     = 5;
+const AMBER 		     = 9;
+const YELLOW_ 		     = 13;
+const LIME 		     = 17;
+const GREEN_ 		     = 21;
+const SPRING 		     = 25;
+const TURQUOISE 	     = 29;
+const CYAN_ 		     = 33;
+const SKY 		     = 37;
+const OCEAN 		     = 41;
+const BLUE_ 		     = 45;
+const ORCHID 		     = 49;
+const MAGENTA_ 		     = 3;
+const PINK 		     = 57;
+
+var scenePadColors : array [0..NumberOfColors-1] of pushColor;
+const scGREEN                = 22;
+const scGREEN_HALF           = 19;
+const scGREEN_BLINK_SLOW     = 23;
+const scGREEN_BLINK_FAST     = 24;
+const scRED                  = 4;
+const scRED_HALF             = 1;
+const scRED_BLINK_SLOW       = 5;
+const scRED_BLINK_FAST       = 6;
+const scYELLOW               = 16;
+const scYELLOW_HALF          = 13;
+const scYELLOW_BLINK_SLOW    = 17;
+const scYELLOW_BLINK_FAST    = 18;
+const scAMBER                = 10;
+const scAMBER_HALF           = 7;
+const scAMBER_BLINK_SLOW     = 11;
+const scAMBER_BLINK_FAST     = 12;
+const scOFF 		     = 0;
+const scON                   = 127;
+
+// ----- ----- ---- ----- Parameters         
+var clearPads, midiOut, notePads			
+					: tParameter;
+
+var 	padColorsOutText,
+	scenePadColorsOutText,
+	ccPadColorsOutText			: tParameter;
+
+var 	padColorsOut,
+	scenePadColorsOut,
+	ccPadColorsOut			: tParameter;
+
+var s 					: String;
+var n					: Integer;
+
+
+var touchRotaries	: touchRotaryArray;
+
+var midiIn		: tParameter;
+
+procedure setupTouchRotaryArray;
+begin
+	touchRotaries[0].name    := 'touch rotary 1';
+	touchRotaries[0].value   := TOUCH_ROTARY_1;
+	touchRotaries[1].name    := 'touch rotary 2';
+	touchRotaries[1].value   := TOUCH_ROTARY_2;
+	touchRotaries[2].name    := 'touch rotary 3';
+	touchRotaries[2].value   := TOUCH_ROTARY_3;
+	touchRotaries[3].name    := 'touch rotary 4';
+	touchRotaries[3].value   := TOUCH_ROTARY_4;
+	touchRotaries[4].name    := 'touch rotary 5';
+	touchRotaries[4].value   := TOUCH_ROTARY_5;
+	touchRotaries[5].name    := 'touch rotary 6';
+	touchRotaries[5].value   := TOUCH_ROTARY_6;
+	touchRotaries[6].name    := 'touch rotary 7';
+	touchRotaries[6].value   := TOUCH_ROTARY_7;
+	touchRotaries[7].name    := 'touch rotary 8';
+	touchRotaries[7].value   := TOUCH_ROTARY_8;
+	touchRotaries[8].name    := 'touch rotary volume';
+	touchRotaries[8].value   := TOUCH_ROTARY_VOLUME;
+	touchRotaries[9].name    := 'touch rotary quantize';
+	touchRotaries[9].value   := TOUCH_ROTARY_QUANTIZE;
+	touchRotaries[10].name   := 'touch encoder tempo';
+	touchRotaries[10].value  := TOUCH_ENCODER_TEMPO;
+
+	for n:=0 to 10
+	do begin
+		touchRotaries[n].param := createParam( touchRotaries[n].name, ptButton );
+		setIsInput(touchRotaries[n].param, false);
+	end
+end
+
+procedure setupPadColors;
+begin
+	padColors[0].name   := 'Dark Grey';
+	padColors[0].value  := DARK_GREY;
+	padColors[1].name   := 'Black';
+	padColors[1].value  := BLACK_;
+	padColors[2].name   := 'Grey';
+	padColors[2].value  := GREY;
+	padColors[3].name   := 'White';
+	padColors[3].value  := WHITE_;
+	padColors[4].name   := 'Red';
+	padColors[4].value  := RED_;
+	padColors[5].name   := 'Amber';
+	padColors[5].value  := AMBER;
+	padColors[6].name   := 'Yellow';
+	padColors[6].value  := YELLOW_;
+	padColors[7].name   := 'Lime';
+	padColors[7].value  := LIME;
+	padColors[8].name   := 'Green';
+	padColors[8].value  := GREEN_;
+	padColors[9].name   := 'Spring';
+	padColors[9].value  := SPRING;
+	padColors[10].name  := 'Turqoise';
+	padColors[10].value := TURQUOISE;
+	padColors[11].name  := 'Cyan';
+	padColors[11].value := CYAN_;
+	padColors[12].name  := 'Sky';
+	padColors[12].value := SKY;
+	padColors[13].name  := 'Ocean';
+	padColors[13].value := OCEAN;
+	padColors[14].name  := 'Blue';
+	padColors[14].value := BLUE_;
+	padColors[15].name  := 'Orchid';
+	padColors[15].value := ORCHID;
+	padColors[16].name  := 'Magenta';
+	padColors[16].value := MAGENTA_;
+	padColors[17].name  := 'Pink';
+	padColors[17].value := PINK;
+
+	padColorsOutText   := createParam('pad colors text', ptTextfield);
+	setIsInput(padColorsOutText,false);
+	setIsSeparator(padColorsOutText,true);
+	padColorsOut	:= createParam('pad colors', ptArray);
+	setIsInput(padColorsOut,false);
+
+	setLength(padColorsOut,numberOfColors);
+	for n:=0 to numberOfColors-1
+	do begin
+		if n=0
+		then begin
+			s := padColors[0].name;
+			setDataArrayValue(padColorsOut,0,padColors[0].value);
+		end
+		else begin
+			s:= s + ',' + padColors[n].name;
+			setDataArrayValue(padColorsOut,n,padColors[n].value);
+		end;
+	end;
+	setStringValue(padColorsOutText,s);
+end;
+
+procedure setupScenePadColors;
+begin
+	scenePadColors[0].name   := 'Green';
+	scenePadColors[0].value  := scGREEN;
+	scenePadColors[1].name   := 'Green/Half';
+	scenePadColors[1].value  := scGREEN_HALF;
+	scenePadColors[2].name   := 'Green/Blink Slow';
+	scenePadColors[2].value  := scGREEN_BLINK_SLOW;
+	scenePadColors[3].name   := 'Green/Blink Fast';
+	scenePadColors[3].value  := scGREEN_BLINK_FAST;
+	scenePadColors[4].name   := 'Red';
+	scenePadColors[4].value  := scRED;
+	scenePadColors[5].name   := 'Red/Half';
+	scenePadColors[5].value  := scRED_HALF;
+	scenePadColors[6].name   := 'Red/Blink Slow';
+	scenePadColors[6].value  := scRED_BLINK_SLOW;
+	scenePadColors[7].name   := 'Red/Blink Fast';
+	scenePadColors[7].value  := scRED_BLINK_FAST;
+	scenePadColors[8].name   := 'Yellow';
+	scenePadColors[8].value  := scYELLOW;
+	scenePadColors[9].name   := 'Yellow/Half';
+	scenePadColors[9].value  := scYELLOW_HALF;
+	scenePadColors[10].name  := 'Yellow/Blink Slow';
+	scenePadColors[10].value := scYELLOW_BLINK_SLOW;
+	scenePadColors[11].name  := 'Yellow/Blink Fast';
+	scenePadColors[11].value := scYELLOW_BLINK_FAST;
+	scenePadColors[12].name  := 'Amber';
+	scenePadColors[12].value := scAMBER;
+	scenePadColors[13].name  := 'Amber/Half';
+	scenePadColors[13].value := scAMBER_HALF;
+	scenePadColors[14].name  := 'Amber/Blink Slow';
+	scenePadColors[14].value := scAMBER_BLINK_SLOW;
+	scenePadColors[15].name  := 'Amber/Blink Fast';
+	scenePadColors[15].value := scAMBER_BLINK_FAST;
+	scenePadColors[16].name  := 'Off';
+	scenePadColors[16].value := scOFF;
+	scenePadColors[17].name  := 'On';
+	scenePadColors[17].value := scON;
+
+	scenePadColorsOutText := createParam('scene pad colors text', ptTextfield);
+	setIsInput(scenePadColorsOutText,false);
+	setIsSeparator(padColorsOutText,true);
+	scenePadColorsOut := createParam('scene pad colors', ptArray);
+	setIsInput(scenePadColorsOut,false);
+
+	setLength(scenePadColorsOut,numberOfColors);
+	for n:=0 to numberOfColors-1
+	do begin
+		if n=0
+		then begin
+			s := scenePadColors[0].name;
+			setDataArrayValue(scenePadColorsOut,0,scenePadColors[0].value);
+		end
+		else begin
+			s:= s + ',' + scenePadColors[n].name;
+			setDataArrayValue(scenePadColorsOut,n,scenePadColors[n].value);
+		end;
+	end;
+	setStringValue(scenePadColorsOutText,s);
+end;
+
+procedure setupCCPadColors;
+begin
+	ccPadColors[0].name  := 'HALF';
+	ccPadColors[0].value := ccHALF;
+	ccPadColors[1].name  := 'HALF_BLINK_SLOW';
+	ccPadColors[1].value := ccHALF_BLINK_SLOW;
+	ccPadColors[2].name  := 'HALF_BLINK_FAST';
+	ccPadColors[2].value := ccHALF_BLINK_FAST;
+	ccPadColors[3].name  := 'FULL';
+	ccPadColors[3].value := ccFULL;
+	ccPadColors[4].name  := 'FULL_BLINK_SLOW';
+	ccPadColors[4].value := ccFULL_BLINK_SLOW;
+	ccPadColors[5].name  := 'FULL_BLINK_FAST';
+	ccPadColors[5].value := ccFULL_BLINK_FAST;
+	ccPadColors[6].name  := 'OFF';
+	ccPadColors[6].value := ccOFF;
+	ccPadColors[7].name  := 'ON';
+	ccPadColors[7].value := ccON;  
+	
+	setLength(ccPadColorsOut,numberOfColors);
+	for n:=0 to numberOfColorsCC-1
+	do begin
+		if n=0
+		then begin
+			s := ccPadColors[0].name;
+			setDataArrayValue(ccPadColorsOut,0,ccPadColors[0].value);
+		end
+		else begin
+			s:= s + ',' + ccPadColors[n].name;
+			setDataArrayValue(ccPadColorsOut,n,ccPadColors[n].value);
+		end;
+	end;
+	setStringValue(ccPadColorsOutText,s);
+
+	ccPadColorsOutText := createParam('cc pad colors text', ptTextfield);
+	setIsInput(ccPadColorsOutText,false);
+	setIsSeparator(padColorsOutText,true);
+	ccPadColorsOut := createParam('cc pad colors', ptArray);
+	setIsInput(ccPadColorsOut,false);
+end;
+
+// initialisation : create parameters
+procedure init;
+begin
+
+	midiIn	  := createParam('midi in',ptMidi);
+	setIsOutput(midiIn,false);
+
+	notePads  := createParam('notePads',ptArray);
+	setIsSeparator(notePads,true);
+
+	clearPads := createParam('clear pads',ptButton);
+
+	setupTouchRotaryArray();
+	setupPadColors();
+	setupScenePadColors();
+	setupCCPadColors();
+
+	midiOut := createParam('midi out',ptMidi);
+	setIsInput(midiOut,false);
+	setIsSeparator(midiOut,true);
+end;
+
+// counters...
+var l,m,o,p,pt : integer;
+
+var intInput, retInt : integer;
+var padOut1,padOut2   : notePadFlatMidi;
+
+var midiTmp,inTmp  : tMidi;
+
+// Callback procedure
+Procedure Callback(N:integer); 
+begin
+case N of
+	clearPads: begin
+		if getValue(clearPads)=1
+		then begin
+			for p:=0 to PADs-1
+			do begin
+				padOut1[p].msg     := 144;
+				padOut1[p].data1   := PAD_FIRST_NOTE+p;
+				padOut1[p].data2   := 0;	
+				padOut1[p].channel := 1;
+	
+				setMidiArrayValue(midiOut,p,padOut1[p]);
+			end;
+			
+			for p:=PADS to (PADS*2)-1
+			do begin
+				// need a temporary p to make this less annoying
+				pt := p-PADS;
+				padOut2[pt].msg     := 127;
+				padOut2[pt].data1   := PAD_FIRST_NOTE+pt;
+				padOut2[pt].data2   := 0;	
+				padOut2[pt].channel := 1;
+	
+				setMidiArrayValue(midiOut,p,padOut2[pt]);
+			end;
+			setLength(midiOut,PADS*2);
+		end;
+	end;
+
+//	touchRotaries[0].param..touchRotaries[10].param-1: begin
+//	end;
+
+	midiIn: begin
+		writeln('midi in triggered ==>');
+		l	:= getLength(midiIn);
+		if l > 0
+		then begin
+			for m:=0 to l-1
+			do begin
+				writeln('==> getting midi array value '+inttostr(m));
+				getMidiArrayValue(midiIn,m,inTmp);
+				if (inTmp.msg = 144) or (inTmp.msg = 128) // NOTE ON, NOTE OFF
+				then begin
+				writeln('==> looks like we are dealing with NOTE ON or NOTE OFF - '+inttostr(inTmp.msg));
+				if (inTmp.data1 >= touchRotaries[0].value) and (inTmp.data1 <= touchRotaries[10].value)
+				then begin
+					writeln('== ==> midi value matches touch rotaries with '+inttostr(inTmp.data1));
+					if inTmp.msg = 144
+					then begin
+						retInt := 1;
+					end
+					else begin
+						retInt := 0;
+					end;
+					o := inTmp.data1 - touchRotaries[0].value;
+					writeln('== ==> setting the '+inttostr(o+1)+' rotary output to '+inttostr(retInt));
+					setValue(touchRotaries[o].param,retInt);
+				end;
+				end;				
+			end;
+		end
+	end;
+end;			
+end;
+
+// Global variables
+
+//////////////////////////////
+// main proc
+//////////////////////////////
+Procedure Process;
+begin
+	if getValue(clearPads)=0
+	then begin
+		setLength(midiOut,0);
+	end;
+
+	if getLength(midiIn)<=0
+	then begin
+		setLength(midiOut,0);
+	end;
+end;
+
