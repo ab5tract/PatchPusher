@@ -11,7 +11,10 @@ const ROWS                  = 8;
 const COLUMNS               = 8;
 const PAD_FIRST_NOTE        = 36;
 
-type PushColor = Record
+type notePadFlat     = array [0..PADS-1] of integer;
+type notePadFlatMidi = array [0..PADS-1] of tMidi;
+
+type PadColor = Record
     Name  : String;
     Value : Integer;
 end;
@@ -38,10 +41,8 @@ type RotaryRecord = Record
     sendMidi : Boolean;
 end;
 
-type rotaryArray           = array [0..9] of RotaryRecord;
-
+type rotaryRecordArray     = array [0..9] of RotaryRecord;
 type touchRotaryArray      = array [0..9] of InputTriad;
-
 type notePadStateArray     = array [0..PADS-1] of PadState;
  
 // modulation options
@@ -127,7 +128,7 @@ const UNDO                  = 119;
 const NumberOfColors         = 18;
 const NumberOfColorsCC       = 8;
 
-var ccPadColors : array [0..NumberOfColorsCC-1] of pushColor;
+var ccPadColors : array [0..NumberOfColorsCC-1] of PadColor;
 const ccHALF                 = 1;     
 const ccHALF_BLINK_SLOW      = 2;
 const ccHALF_BLINK_FAST      = 3;
@@ -137,7 +138,7 @@ const ccFULL_BLINK_FAST      = 6;
 const ccOFF                  = 0;   
 const ccON                   = 127;   
                                                   
-var padColors : array [0..NumberOfColors-1] of pushColor; 
+var padColors : array [0..NumberOfColors-1] of PadColor; 
 const BLACK_ 		     = 0;
 const DARK_GREY 	     = 1;
 const GREY 		     = 2;
@@ -157,7 +158,7 @@ const ORCHID 		     = 49;
 const MAGENTA_ 		     = 3;
 const PINK 		     = 57;
 
-var scenePadColors : array [0..NumberOfColors-1] of pushColor;
+var scenePadColors : array [0..NumberOfColors-1] of PadColor;
 const scGREEN                = 22;
 const scGREEN_HALF           = 19;
 const scGREEN_BLINK_SLOW     = 23;
@@ -194,9 +195,9 @@ var n					: Integer;
 
 
 var touchRotaries	: touchRotaryArray;
+var rotaryArray   : rotaryRecordArray;
 
 var midiIn		: tParameter;
-
 procedure setupTouchRotaryArray;
 begin
 	touchRotaries[0].name    := 'touch rotary 1';
@@ -217,35 +218,43 @@ begin
 	touchRotaries[7].value   := TOUCH_ROTARY_8;
 	touchRotaries[8].name    := 'touch rotary volume';
 	touchRotaries[8].value   := TOUCH_ROTARY_VOLUME;
-	touchRotaries[9].name    := 'touch rotary quantize';
-	touchRotaries[9].value   := TOUCH_ROTARY_QUANTIZE;
-	touchRotaries[10].name   := 'touch encoder tempo';
-	touchRotaries[10].value  := TOUCH_ENCODER_TEMPO;
+	touchRotaries[9].name    := 'touch encoder tempo';
+	touchRotaries[9].value   := TOUCH_ENCODER_TEMPO;
+	touchRotaries[10].name   := 'touch rotary quantize';
+	touchRotaries[10].value  := TOUCH_ROTARY_QUANTIZE;
 
   for n:=0 to 10
   do begin
-    rotaryArray[n].name = delete(touchRotaries[n].name, 0, 6);
-    rotaryArray[n].ccIn = touchRotaries[n].value;
+    rotaryArray[n].name := copy(touchRotaries[n].name,7,length(touchRotaries[n].name)-5);
 
-    rotaryArray[n].param = createParam( rotaryArray[n].name, ptDataField );
-    setIsInput(rotaryArray[n].param,false);
+    if( n < 9 ) // for the 9 top rotaries, count starts from 0 and ends at 8
+    then begin
+      rotaryArray[n].ccIn := touchRotaries[n].value + 71; // last value will be 79
+    end
+    else if( n >= 9 )
+    then begin
+      rotaryArray[n].ccIn := 14 + (n-9); 
+    end;
+
+    rotaryArray[n].param := createParam( rotaryArray[n].name, ptDataField );
+//    setIsInput(rotaryArray[n].param,false);
   end;
-  setIsSeperator(rotaryArray[0].param,true);
+  setIsSeparator(rotaryArray[0].param,true);
 
   for n:=0 to 10
   do begin
-    rotaryArray[n].relParam = createParam( rotaryArray[n].name, ptDataField );
-    setIsInput(rotaryArray[n].relParam,false);
+    rotaryArray[n].relParam := createParam( rotaryArray[n].name + ' rel', ptDataField );
+//    setIsInput(rotaryArray[n].relParam,false);
   end;
-  setIsSeperator(rotaryArray[0].relParam,true);
+  setIsSeparator(rotaryArray[0].relParam,true);
 
 	for n:=0 to 10
 	do begin
 		touchRotaries[n].param := createParam( touchRotaries[n].name, ptButton );
 		setIsInput(touchRotaries[n].param, false);
 	end
+  setIsSeparator(touchRotaries[0].param,true);
 
-  setIsSeperator(touchRotaries[0].param,true);
 end
 
 procedure setupPadColors;
@@ -473,9 +482,6 @@ case N of
 		end;
 	end;
 
-//	touchRotaries[0].param..touchRotaries[10].param-1: begin
-//	end;
-
 	midiIn: begin
 		writeln('midi in triggered ==>');
 		l	:= getLength(midiIn);
@@ -485,23 +491,41 @@ case N of
 			do begin
 				writeln('==> getting midi array value '+inttostr(m));
 				getMidiArrayValue(midiIn,m,inTmp);
-				if (inTmp.msg = 144) or (inTmp.msg = 128) // NOTE ON, NOTE OFF
+        if (inTmp.msg = 176 ) // CC
+        then begin
+  				writeln('==> looks like we are dealing with CC - '+inttostr(inTmp.msg));
+
+          // Rotaries
+  				if (inTmp.data1 >= rotaryArray[0].ccIn) and (inTmp.data1 <= rotaryArray[8].ccIn)
+          then begin
+  					o := inTmp.data1 - rotaryArray[0].ccIn;  // same as saying `inTmp.data1 - 71`
+  					writeln('== ==> midi CC value matches '+rotaryArray[o].name+' with '+inttostr(inTmp.data2));
+            setValue(rotaryArray[o].relParam, inTmp.data2);
+          end
+          else if (inTmp.data1 >= rotaryArray[9].ccIn) and (inTmp.data1 <= rotaryArray[10].ccIn)
+          then begin
+  					o := inTmp.data1 - 5;  // same as saying `(14 or 15) - 5`, this is not intuitive but it works
+  					writeln('== ==> midi CC value matches '+rotaryArray[o].name+' with '+inttostr(inTmp.data2));
+            setValue(rotaryArray[o].relParam, inTmp.data2);
+          end;
+        end
+				else if (inTmp.msg = 144) or (inTmp.msg = 128) // NOTE ON, NOTE OFF
 				then begin
-				writeln('==> looks like we are dealing with NOTE ON or NOTE OFF - '+inttostr(inTmp.msg));
-				if (inTmp.data1 >= touchRotaries[0].value) and (inTmp.data1 <= touchRotaries[10].value)
-				then begin
-					writeln('== ==> midi value matches touch rotaries with '+inttostr(inTmp.data1));
-					if inTmp.msg = 144
-					then begin
-						retInt := 1;
-					end
-					else begin
-						retInt := 0;
-					end;
-					o := inTmp.data1 - touchRotaries[0].value;
-					writeln('== ==> setting the '+inttostr(o+1)+' rotary output to '+inttostr(retInt));
-					setValue(touchRotaries[o].param,retInt);
-				end;
+  				writeln('==> looks like we are dealing with NOTE ON or NOTE OFF - '+inttostr(inTmp.msg));
+  				if (inTmp.data1 >= touchRotaries[0].value) and (inTmp.data1 <= touchRotaries[10].value)
+  				then begin
+  					o := inTmp.data1 - touchRotaries[0].value;
+  					writeln('== ==> midi value matches rotary '+inttostr(o+1)+' with note '+inttostr(inTmp.data1));
+  					if inTmp.msg = 144
+  					then begin
+  						retInt := 1;
+  					end
+  					else begin
+  						retInt := 0;
+  					end;
+  					writeln('== ==> setting the '+inttostr(o+1)+' rotary output to '+inttostr(retInt));
+  					setValue(touchRotaries[o].param,retInt);
+  				end;
 				end;				
 			end;
 		end
@@ -511,19 +535,23 @@ end;
 
 // Global variables
 
+
+// pc = process level counter, need to keep carefuly track of these
+var pc1 : Integer;
+
 //////////////////////////////
 // main proc
 //////////////////////////////
 Procedure Process;
 begin
-	if getValue(clearPads)=0
+
+  // not sure why I had the rule for getLength(midiIn<=0),
+  // I believe it was added while debugging something that turned out
+  // unrelated 
+	if (getValue(clearPads)<1)
 	then begin
 		setLength(midiOut,0);
 	end;
 
-	if getLength(midiIn)<=0
-	then begin
-		setLength(midiOut,0);
-	end;
 end;
 
