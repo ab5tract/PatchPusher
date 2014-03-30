@@ -22,13 +22,25 @@ type PadState = Record
 	note  : Integer;
 end;
 
-type inputTriad = Record
+type InputTriad = Record
     Name  : String;
     Value : Integer;
     param : tParameter;
 end;
 
-type touchRotaryArray = array [0..9] of inputTriad;
+type RotaryRecord = Record
+    Name     : String;
+    ccIn     : Integer;
+    ccOut    : Integer;
+    relParam : tParameter;
+    param    : tParameter;
+    midi     : tMidi;
+    sendMidi : Boolean;
+end;
+
+type rotaryArray           = array [0..9] of RotaryRecord;
+
+type touchRotaryArray      = array [0..9] of InputTriad;
 
 type notePadStateArray     = array [0..PADS-1] of PadState;
  
@@ -210,11 +222,30 @@ begin
 	touchRotaries[10].name   := 'touch encoder tempo';
 	touchRotaries[10].value  := TOUCH_ENCODER_TEMPO;
 
+  for n:=0 to 10
+  do begin
+    rotaryArray[n].name = delete(touchRotaries[n].name, 0, 6);
+    rotaryArray[n].ccIn = touchRotaries[n].value;
+
+    rotaryArray[n].param = createParam( rotaryArray[n].name, ptDataField );
+    setIsInput(rotaryArray[n].param,false);
+  end;
+  setIsSeperator(rotaryArray[0].param,true);
+
+  for n:=0 to 10
+  do begin
+    rotaryArray[n].relParam = createParam( rotaryArray[n].name, ptDataField );
+    setIsInput(rotaryArray[n].relParam,false);
+  end;
+  setIsSeperator(rotaryArray[0].relParam,true);
+
 	for n:=0 to 10
 	do begin
 		touchRotaries[n].param := createParam( touchRotaries[n].name, ptButton );
 		setIsInput(touchRotaries[n].param, false);
 	end
+
+  setIsSeperator(touchRotaries[0].param,true);
 end
 
 procedure setupPadColors;
