@@ -442,11 +442,12 @@ begin
 	end;
 	setStringValue(ccPadColorsOutText,s);
 
-	ccPadColorsOutText := createParam('cc pad colors text', ptTextfield);
-	setIsInput(ccPadColorsOutText,false);
-	setIsSeparator(padColorsOutText,true);
 	ccPadColorsOut := createParam('cc pad colors', ptArray);
 	setIsInput(ccPadColorsOut,false);
+	setIsSeparator(ccPadColorsOut,true);
+
+	ccPadColorsOutText := createParam('cc pad colors text', ptTextfield);
+	setIsInput(ccPadColorsOutText,false);
 end;
 
 // initialisation : create parameters
