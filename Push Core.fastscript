@@ -138,7 +138,7 @@ const ccFULL_BLINK_FAST      = 6;
 const ccOFF                  = 0;   
 const ccON                   = 127;   
                                                   
-var padColors : array [0..NumberOfColors-1] of PadColor; 
+var padColors,padColorsOff : array [0..NumberOfColors-1] of PadColor; 
 const BLACK_ 		     = 0;
 const DARK_GREY 	     = 1;
 const GREY 		     = 2;
@@ -178,15 +178,21 @@ const scAMBER_BLINK_FAST     = 12;
 const scOFF 		     = 0;
 const scON                   = 127;
 
-// ----- ----- ---- ----- Parameters         
+// ----- ----- ----- ----- LCD Related
+const LINE_1  = 24;
+const LINE_2  = 25;
+const LINE_3  = 26;
+const LINE_4  = 27;
+
+// ----- ----- ----- ----- Parameters         
 var clearPads, midiOut, notePads			
 					: tParameter;
 
-var 	padColorsOutText,
+var 	padColorsOutText, padColorsOffOutText,
 	scenePadColorsOutText,
 	ccPadColorsOutText			: tParameter;
 
-var 	padColorsOut,
+var 	padColorsOut, padColorsOffOut,
 	scenePadColorsOut,
 	ccPadColorsOut			: tParameter;
 
@@ -198,6 +204,8 @@ var touchRotaries	: touchRotaryArray;
 var rotaryArray   : rotaryRecordArray;
 
 var midiIn		: tParameter;
+var sysex     : tParameter;
+
 procedure setupTouchRotaryArray;
 begin
 	touchRotaries[0].name    := 'touch rotary 1';
@@ -296,11 +304,17 @@ begin
 	padColors[17].name  := 'Pink';
 	padColors[17].value := PINK;
 
-	padColorsOutText   := createParam('pad colors text', ptTextfield);
+	padColorsOut	:= createParam('pad colors ON', ptArray);
+	padColorsOutText      := createParam('pad colors ON text', ptTextfield);
+	setIsSeparator(padColorsOut,true);
 	setIsInput(padColorsOutText,false);
-	setIsSeparator(padColorsOutText,true);
-	padColorsOut	:= createParam('pad colors', ptArray);
 	setIsInput(padColorsOut,false);
+
+	padColorsOffOut	:= createParam('pad colors OFF', ptArray);
+	padColorsOffOutText   := createParam('pad colors OFF text', ptTextfield);
+	setIsSeparator(padColorsOffOut,true);
+	setIsInput(padColorsOffOut,false);
+	setIsInput(padColorsOffOutText,false);
 
 	setLength(padColorsOut,numberOfColors);
 	for n:=0 to numberOfColors-1
@@ -316,6 +330,21 @@ begin
 		end;
 	end;
 	setStringValue(padColorsOutText,s);
+
+	setLength(padColorsOffOut,numberOfColors);
+	for n:=0 to numberOfColors-1
+	do begin
+		if n=0
+		then begin
+			s := padColors[0].name + ' [Off]';
+			setDataArrayValue(padColorsOffOut,0,padColors[0].value+2);
+		end
+		else begin
+			s:= s + ',' + padColors[n].name + ' [Off]';
+			setDataArrayValue(padColorsOffOut,n,padColors[n].value+2);
+		end;
+	end;
+	setStringValue(padColorsOffOutText,s);
 end;
 
 procedure setupScenePadColors;
@@ -357,11 +386,11 @@ begin
 	scenePadColors[17].name  := 'On';
 	scenePadColors[17].value := scON;
 
-	scenePadColorsOutText := createParam('scene pad colors text', ptTextfield);
-	setIsInput(scenePadColorsOutText,false);
-	setIsSeparator(padColorsOutText,true);
 	scenePadColorsOut := createParam('scene pad colors', ptArray);
 	setIsInput(scenePadColorsOut,false);
+	setIsSeparator(scenePadColorsOut,true);
+	scenePadColorsOutText := createParam('scene pad colors text', ptTextfield);
+	setIsInput(scenePadColorsOutText,false);
 
 	setLength(scenePadColorsOut,numberOfColors);
 	for n:=0 to numberOfColors-1
