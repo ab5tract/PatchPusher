@@ -1,5 +1,6 @@
 //////////////////////////
-// 
+// PATCH PUSHER
+//    '...that pusher man...'
 /////////////////////////
 // parameters declaration
         
@@ -58,7 +59,6 @@ type sysexLCDPrefixes       = array [0..4] of sysexLCDPrefix;
 type sysexLCD               = array [0..3] of sysexLCDLine; // 4 lines per Push :)
 
 type LCDInputArray          = array [0..3] of tParameter;
-type LCD8InputArray         = array [0..7] of tParameter;
 
 // modulation options
 const PITCH_BEND            = 12; // sends PB data too
@@ -221,8 +221,7 @@ var rotaryArray   : rotaryRecordArray;
 var midiIn		: tParameter;
 var sysex     : tParameter;
 
-var LCDIn     : LCDInputArray;
-var LCDIn8    : LCD8InputArray;
+var lcdIn,lcdIn8     : LCDInputArray;
 procedure setupLCDInputs;
 var n : integer;
 begin
@@ -237,6 +236,7 @@ begin
   do begin
     LCDIn8[n] := createParam( 'LCD 8 line '+inttostr(n+1), ptTextfield );
 //    setIsOutput( LCDIn8[n],false );
+    setVisible( lcdIn8[n],false );
   end;
   setIsSeparator( LCDIn8[0],true );
 end;
@@ -281,6 +281,7 @@ begin
 
     rotaryArray[n].param := createParam( rotaryArray[n].name, ptDataField );
 //    setIsInput(rotaryArray[n].param,false);
+    setVisible(rotaryArray[n].param,false);
   end;
   setIsSeparator(rotaryArray[0].param,true);
 
@@ -645,11 +646,11 @@ begin
 	setupScenePadColors();
 	setupCCPadColors();
 
+  setupLCDInputs;
+
 	midiOut := createParam('midi out',ptMidi);
 	setIsInput(midiOut,false);
 	setIsSeparator(midiOut,true);
-
-  setupLCDInputs;
 
   sysex := createParam('sysex',ptArray);
   setIsInput(sysex,false);
