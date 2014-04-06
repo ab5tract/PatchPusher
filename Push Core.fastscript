@@ -57,6 +57,9 @@ type sysexLCDPrefix         = array [0..6] of integer; // 7 integer prefix code 
 type sysexLCDPrefixes       = array [0..4] of sysexLCDPrefix;
 type sysexLCD               = array [0..3] of sysexLCDLine; // 4 lines per Push :)
 
+type LCDInputArray          = array [0..3] of tParameter;
+type LCD8InputArray         = array [0..7] of tParameter;
+
 // modulation options
 const PITCH_BEND            = 12; // sends PB data too
 const TOUCH_ENCODER_TEMPO   = 10;
@@ -217,6 +220,26 @@ var rotaryArray   : rotaryRecordArray;
 
 var midiIn		: tParameter;
 var sysex     : tParameter;
+
+var LCDIn     : LCDInputArray;
+var LCDIn8    : LCD8InputArray;
+procedure setupLCDInputs;
+var n : integer;
+begin
+  for n:=0 to 3
+  do begin
+    LCDIn[n] := createParam( 'LCD line '+inttostr(n+1), ptTextfield );
+//    setIsOutput( LCDIn[n],false );
+  end;
+  setIsSeparator( LCDIn[0],true );
+
+  for n:=0 to 3
+  do begin
+    LCDIn8[n] := createParam( 'LCD 8 line '+inttostr(n+1), ptTextfield );
+//    setIsOutput( LCDIn8[n],false );
+  end;
+  setIsSeparator( LCDIn8[0],true );
+end;
 
 procedure setupTouchRotaryArray;
 begin
@@ -462,7 +485,6 @@ begin
 	setIsInput(ccPadColorsOutText,false);
 end;
 
-var llamas : tParameter;
 var lcdPrefix : sysexLCDPrefixes;
 var lcd : sysexLCD;
 
@@ -518,8 +540,19 @@ begin
     end;
     stop  := start + 7;
 
+    // i also had a bad index adjustment in the writeLCDLine procedures,
+    // so this calculation needs to be re-examined.
     Segments8[n].start := start;
     Segments8[n].stop  := stop;
+  end;
+end;
+
+procedure blankLineArray( const LINE_NUMBER : integer );
+var l : integer;
+begin
+  for l:=0 to 67
+  do begin
+    lcd[LINE_NUMBER][l] := ord(' ');
   end;
 end;
 
@@ -533,7 +566,9 @@ begin
     writeln('WARNING! LCD line text cannot be more than 68 characters. Only first 68 characters will be shown.'); 
   end
   else begin
-    for n:=0 to 67
+    blankLineArray( LINE_NUMBER );
+    writeln('Writing to '+inttostr(LINE_NUMBER)+': '+LCDTEXT);
+    for n:=0 to l-1
     do begin
       c := LCDTEXT[n+1];
       lcd[LINE_NUMBER][n] := ord( c );
@@ -547,7 +582,7 @@ begin
         setDataArrayValue( sysex, n, lcdPrefix[LINE_NUMBER][n] );
       end
       else begin
-        setDataArrayValue( sysex, n, lcd[LINE_NUMBER][n-7] ); // n is 7 ahead of correct index value
+        setDataArrayValue( sysex, n, lcd[LINE_NUMBER][n-7] ); // n is 6 ahead of correct index value
       end;
     end;
   end;
@@ -564,6 +599,7 @@ begin
     writeln('WARNING! Text for 8 segment LCD cannot be more than 8 characters. Please fix segment '+inttostr(SEGMENT)+', line '+inttostr(LINE_NUMBER));
   end
   else begin
+    blankLineArray( LINE_NUMBER );
     writeln('starting '+inttostr(SEGMENT)+' on '+inttostr(start)+' until '+inttostr(stop));
     start := Segments8[SEGMENT].start;
     stop  := Segments8[SEGMENT].stop;
@@ -613,11 +649,11 @@ begin
 	setIsInput(midiOut,false);
 	setIsSeparator(midiOut,true);
 
+  setupLCDInputs;
+
   sysex := createParam('sysex',ptArray);
   setIsInput(sysex,false);
   setIsSeparator(sysex,true);
-
-  llamas := createParam('llamas!!',ptButton);
   
   lcdPrefix[0] := LCDPrefixGen( LINE_1 );
   lcdPrefix[1] := LCDPrefixGen( LINE_2 );
@@ -626,13 +662,9 @@ begin
 
   for o:=0 to 3
   do begin
-    for l:=0 to 67
-    do begin
-      lcd[o][l] := ord(' '); // l is 7 ahead of correct index value
-    end;
+    blankLineArray( o );
   end;
   setupLCDSegments8();
-
 end;
 
 
@@ -650,44 +682,13 @@ var k : integer;
 Procedure Callback(N:integer); 
 begin
 case N of
-  llamas: begin
-    if getValue(llamas)=1
-    then begin
-      string1 := 'llamas <3'; 
 
-      for l:=0 to Length(string1)-1
-      do begin
-        c :=  string1[l+1];
-        lcd[0][l] := ord( c );
-      end;
-
-      for l:=Length(string1) to 67
-      do begin
-        lcd[0][l] := ord( ' ' );
-      end;
-
-      setLength( sysex, 75 );
-      for l:=0 to 74
-      do begin
-        if( l<7 )
-        then begin
-          setDataArrayValue( sysex, l, lcdPrefix[0][l] );
-        end
-        else begin
-          setDataArrayValue( sysex, l, lcd[0][l-7] ); // l is 7 ahead of correct index value
-        end;
-      end;
-
-      writeLCDSegments8( 1, 0, 'llamas' );
-      writeLCDSegments8( 1, 1, 'llamas' );
-      writeLCDSegments8( 1, 2, 'llamas!!' );
-      writeLCDSegments8( 1, 3, 'llamas' );
-      writeLCDSegments8( 1, 4, 'llamas' );
-      writeLCDSegments8( 1, 5, 'llamas!!' );
-      writeLCDSegments8( 1, 6, 'llamas' );
-      writeLCDSegments8( 1, 7, 'llamas' );
-
-    end;
+  lcdIn[0]..lcdIn[3]: begin
+    k := N-lcdIn[0];
+    writeLCDLine( k,getStringValue(lcdIn[k]) );
+  end;
+  
+  LCDIn8[0]..LCDIn8[3]: begin
   end;
 
 	clearPads: begin
@@ -789,7 +790,10 @@ begin
 		setLength(midiOut,0);
 	end;
 
-  if (getValue(llamas)<1)
+  //TODO: I think we can just set a 'sendLCD' flag that we check on process,
+  //  then the length of these params should not directly matter for whether the
+  //  sysex fires or not(that is my hope anyway)
+  if (getLength(lcdIn[0])=0) and (getLength(lcdIn[1])=0) and (getLength(lcdIn[2])=0) and (getLength(lcdIn[3])=0)
   then begin
     setLength(sysex,0);
   end;
