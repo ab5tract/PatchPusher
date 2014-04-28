@@ -6,7 +6,7 @@
         
 // ----- ----- ---- ----- Notes 
    
-// values related to notes
+// note-related constants
 const PADS                  = 64;
 const ROWS                  = 8;
 const COLUMNS               = 8;
@@ -33,7 +33,7 @@ type PadState = Record
 	note  : Integer;
 end;
 
-type InputTriad = Record
+type InputRegister = Record
     Name  : String;
     Value : Integer;
     param : tParameter;
@@ -50,7 +50,7 @@ type RotaryRecord = Record
 end;
 
 type rotaryRecordArray     = array [0..9] of RotaryRecord;
-type touchRotaryArray      = array [0..9] of InputTriad;
+type touchRotaryArray      = array [0..9] of InputRegister;
 type notePadStateArray     = array [0..PADS-1] of PadState;
  
 type sysexLCDLine           = array [0..67] of integer; // 68 characters per line
@@ -190,7 +190,7 @@ const scAMBER                = 10;
 const scAMBER_HALF           = 7;
 const scAMBER_BLINK_SLOW     = 11;
 const scAMBER_BLINK_FAST     = 12;
-const scOFF 		     = 0;
+const scOFF 		             = 0;
 const scON                   = 127;
 
 // ----- ----- ----- ----- LCD Related
