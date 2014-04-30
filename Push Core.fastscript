@@ -707,8 +707,8 @@ case N of
 			
 			for p:=PADS to (PADS*2)-1
 			do begin
-				// need a temporary p to make this less annoying
 				pt := p-PADS;
+
 				padOut2[pt].msg     := 127;
 				padOut2[pt].data1   := PAD_FIRST_NOTE+pt;
 				padOut2[pt].data2   := 0;	
