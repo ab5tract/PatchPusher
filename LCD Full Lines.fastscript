@@ -1,0 +1,237 @@
+
+// ----- ----- ----- ----- LCD Related
+const LINE_1  = 24;
+const LINE_2  = 25;
+const LINE_3  = 26;
+const LINE_4  = 27;
+
+type Segment = Record
+  start : Integer;
+  stop  : Integer;
+end;
+
+type Segments8Array         = array [0..7] of Segment;
+
+type sysexLCDLine           = array [0..67] of integer; // 68 characters per line
+type sysexLCDPrefix         = array [0..6] of integer; // 7 integer prefix code per line
+type sysexLCDPrefixes       = array [0..4] of sysexLCDPrefix;
+type sysexLCD               = array [0..3] of sysexLCDLine; // 4 lines per Push :)
+
+type LCDInputArray          = array [0..3]  of tParameter;
+type SegmentedLCDInputArray = array [0..31] of tParameter;
+
+var lcdPrefix : sysexLCDPrefixes;
+var lcd : sysexLCD;
+var sysex : tParameter;
+
+var lcdIn     : LCDInputArray;
+var lcdInSegments : SegmentedLCDInputArray;
+procedure setupLCDInputs;
+  var n,l,s : integer;
+begin
+  for n:=0 to 3
+  do begin
+    LCDIn[n] := createParam( 'line '+inttostr(n+1), ptTextfield );
+  end;
+  setIsSeparator( LCDIn[0],true );
+
+  l:=0;   // our trusty line number
+  s:=0;   // our also trusty segment number
+  for n:=0 to 31
+  do begin
+    if (n > 0) and (n mod 8 = 0)
+    then begin
+      l := l+1;
+      s := 0;
+    end
+    else if n = 0 
+    then begin
+      s := 0;
+    end
+    else begin
+      s := s+1;
+    end;
+
+    lcdInSegments[n] := createParam( 'line '+inttostr(l+1)+' segment '+inttostr(s+1), ptTextfield );
+  end;
+
+  if s = 0
+  then begin
+    setIsSeparator( lcdInSegments[n],true );
+  end;
+end;
+
+function LCDPrefixGen( const LINE_NUMBER: integer): sysexLCDPrefix;
+begin
+  result[0] := 71;
+  result[1] := 127;
+  result[2] := 21;
+  result[3] := LINE_NUMBER;
+  result[4] := 0;
+  result[5] := 69;
+  result[6] := 0;
+end;
+
+var Segments8 : Segments8Array;
+
+// this is not an 'algorithm' per se, just trial and error till it worked
+// on further reflection it seems to have some fibonacci-like properties.
+procedure setupLCDSegments8;
+var start,stop,n,notFirst,addSpace: integer;
+begin
+  for n:=0 to 7
+  do begin
+    notFirst := 1;
+    if( n = 0)
+    then begin
+      notFirst := 0;
+    end;
+  
+    if( n > 2 )
+    then begin
+      addSpace := 1 + (n MOD 2);
+  
+      if( n = 3 )
+      then begin
+        addSpace := 1;
+      end
+      else if( n > 5 )
+      then begin
+        addSpace := addSpace + 1;
+      end;
+    end
+    else begin
+      addSpace := 0;
+    end;
+  
+    if( n>0 )
+    then begin
+      start := (n * 7) + (n+notFirst) + addSpace; // n represents how many have been skipped already?
+    end
+    else begin
+      start := 0;
+    end;
+    stop  := start + 7;
+
+    // i also had a bad index adjustment in the writeLCDLine procedures,
+    // so this calculation needs to be re-examined.
+    Segments8[n].start := start;
+    Segments8[n].stop  := stop;
+  end;
+end;
+
+procedure blankLineArray( const LINE_NUMBER : integer );
+var l : integer;
+begin
+  for l:=0 to 67
+  do begin
+    lcd[LINE_NUMBER][l] := ord(' ');
+  end;
+end;
+
+procedure writeLCDLine( const LINE_NUMBER: integer; const LCDTEXT: string );
+var n,l : integer;
+var c : char;
+begin
+  l := length(LCDTEXT);
+  if( l > 68 )
+  then begin
+    writeln('WARNING! LCD line text cannot be more than 68 characters. Only first 68 characters will be shown.'); 
+  end
+  else begin
+    blankLineArray( LINE_NUMBER );
+    writeln('Writing to '+inttostr(LINE_NUMBER)+': '+LCDTEXT);
+    for n:=0 to l-1
+    do begin
+      c := LCDTEXT[n+1];
+      lcd[LINE_NUMBER][n] := ord( c );
+    end;
+
+    setLength( sysex, 75 );
+    for n:=0 to 74
+    do begin
+      if( n<7 )
+      then begin
+        setDataArrayValue( sysex, n, lcdPrefix[LINE_NUMBER][n] );
+      end
+      else begin
+        setDataArrayValue( sysex, n, lcd[LINE_NUMBER][n-7] ); // n is 6 ahead of correct index value
+      end;
+    end;
+  end;
+
+end;
+
+procedure writeLCDSegments8( const LINE_NUMBER, SEGMENT: integer; const LCDTEXT: string );
+var start,stop,l : integer;
+var c : char;
+begin
+  l := length(LCDTEXT);
+  if( l > 8 )
+  then begin
+    writeln('WARNING! Text for 8 segment LCD cannot be more than 8 characters. Please fix segment '+inttostr(SEGMENT)+', line '+inttostr(LINE_NUMBER));
+  end
+  else begin
+    blankLineArray( LINE_NUMBER );
+    writeln('starting '+inttostr(SEGMENT)+' on '+inttostr(start)+' until '+inttostr(stop));
+    start := Segments8[SEGMENT].start;
+    stop  := Segments8[SEGMENT].stop;
+  
+    for l:=0 to Length(LCDTEXT)-1
+    do begin
+      c :=  LCDTEXT[l+1];
+      lcd[LINE_NUMBER][l+start] := ord( c );
+    end;
+  
+    setLength( sysex, 75 );
+    for l:=0 to 74
+    do begin
+      if( l<7 )
+      then begin
+        setDataArrayValue( sysex, l, lcdPrefix[LINE_NUMBER][l] );
+      end
+      else begin
+        setDataArrayValue( sysex, l, lcd[LINE_NUMBER][l-7] ); // l is 7 ahead of correct index value
+      end;
+    end;
+  end;
+
+end;
+
+procedure init;
+  var o : integer;
+begin
+  setupLCDInputs;
+
+  sysex := createParam('sysex',ptArray);
+  setIsInput(sysex,false);
+  setIsSeparator(sysex,true);
+  
+  lcdPrefix[0] := LCDPrefixGen( LINE_1 );
+  lcdPrefix[1] := LCDPrefixGen( LINE_2 );
+  lcdPrefix[2] := LCDPrefixGen( LINE_3 );
+  lcdPrefix[3] := LCDPrefixGen( LINE_4 );
+
+  for o:=0 to 3
+  do begin
+    blankLineArray( o );
+  end;
+  setupLCDSegments8();
+end;
+
+// Callback procedure
+Procedure Callback(N:integer); 
+  var k : integer;
+begin
+  case N of
+  
+    lcdIn[0]..lcdIn[3]: begin
+      k := N-lcdIn[0];
+      writeLCDLine( k,getStringValue(lcdIn[k]) );
+    end;
+    
+    lcdInSegments[0]..lcdInSegments[31]: begin
+    end;
+  
+  end;
+end;

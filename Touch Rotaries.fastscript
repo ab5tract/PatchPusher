@@ -1,0 +1,116 @@
+
+const PADS                  = 64;
+const ROWS                  = 8;
+const COLUMNS               = 8;
+const PAD_FIRST_NOTE        = 36;
+
+const TOUCH_ROTARY_1        = 0;
+const TOUCH_ROTARY_2        = 1;
+const TOUCH_ROTARY_3        = 2;   
+const TOUCH_ROTARY_4        = 3;
+const TOUCH_ROTARY_5        = 4;   
+const TOUCH_ROTARY_6        = 5;   
+const TOUCH_ROTARY_7        = 6;   
+const TOUCH_ROTARY_8        = 7;   
+const TOUCH_ROTARY_VOLUME   = 8;   
+const TOUCH_ROTARY_QUANTIZE = 9;
+const TOUCH_ENCODER_TEMPO   = 10;
+
+type InputRegister = Record
+    Name  : String;
+    Value : Integer;
+    param : tParameter;
+end;
+
+type touchRotaryArray      = array [0..9] of InputRegister;
+
+var touchRotaries	: touchRotaryArray;
+
+var s                   : String;
+var n,l,m,o,retInt             : Integer;
+
+var midiIn				: tParameter;
+var inTmp               : tMidi;
+
+procedure setupTouchRotaryArray;
+begin
+	touchRotaries[0].name    := 'touch rotary 1';
+	touchRotaries[0].value   := TOUCH_ROTARY_1;
+	touchRotaries[1].name    := 'touch rotary 2';
+	touchRotaries[1].value   := TOUCH_ROTARY_2;
+	touchRotaries[2].name    := 'touch rotary 3';
+	touchRotaries[2].value   := TOUCH_ROTARY_3;
+	touchRotaries[3].name    := 'touch rotary 4';
+	touchRotaries[3].value   := TOUCH_ROTARY_4;
+	touchRotaries[4].name    := 'touch rotary 5';
+	touchRotaries[4].value   := TOUCH_ROTARY_5;
+	touchRotaries[5].name    := 'touch rotary 6';
+	touchRotaries[5].value   := TOUCH_ROTARY_6;
+	touchRotaries[6].name    := 'touch rotary 7';
+	touchRotaries[6].value   := TOUCH_ROTARY_7;
+	touchRotaries[7].name    := 'touch rotary 8';
+	touchRotaries[7].value   := TOUCH_ROTARY_8;
+	touchRotaries[8].name    := 'touch rotary volume';
+	touchRotaries[8].value   := TOUCH_ROTARY_VOLUME;
+	touchRotaries[9].name    := 'touch encoder tempo';
+	touchRotaries[9].value   := TOUCH_ENCODER_TEMPO;
+	touchRotaries[10].name   := 'touch rotary quantize';
+	touchRotaries[10].value  := TOUCH_ROTARY_QUANTIZE;
+
+	for n:=0 to 10
+	do begin
+		touchRotaries[n].param := createParam( touchRotaries[n].name, ptButton );
+		setIsInput(touchRotaries[n].param, false);
+	end
+    setIsSeparator(touchRotaries[0].param,true);
+
+end;
+
+
+procedure init;
+begin
+	midiIn	  := createParam('midi in',ptMidi);
+	setIsOutput(midiIn,false);
+
+	setupTouchRotaryArray();
+end;
+
+
+Procedure Callback(N:integer); 
+begin
+case N of
+
+	midiIn: begin
+		writeln('midi in triggered ==>');
+		l	:= getLength(midiIn);
+		if l > 0
+		then begin
+			for m:=0 to l-1
+			do begin
+				writeln('==> getting midi array value '+inttostr(m));
+				getMidiArrayValue(midiIn,m,inTmp);
+
+				if (inTmp.msg = 144) or (inTmp.msg = 128) // NOTE ON, NOTE OFF
+				then begin
+  				writeln('==> looks like we are dealing with NOTE ON or NOTE OFF - '+inttostr(inTmp.msg));
+      				if (inTmp.data1 >= touchRotaries[0].value) and (inTmp.data1 <= touchRotaries[10].value)
+      				then begin
+      					o := inTmp.data1 - touchRotaries[0].value;
+      					writeln('== ==> midi value matches rotary '+inttostr(o+1)+' with note '+inttostr(inTmp.data1));
+      					if inTmp.msg = 144
+      					then begin
+      						retInt := 1;
+      					end
+      					else begin
+      						retInt := 0;
+      					end;
+      					writeln('== ==> setting the '+inttostr(o+1)+' rotary output to '+inttostr(retInt));
+      					setValue(touchRotaries[o].param,retInt);
+      				end;
+				end;				
+			end;
+		end
+	end;
+end;			
+end;
+
