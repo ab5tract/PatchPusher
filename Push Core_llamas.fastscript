@@ -1,0 +1,841 @@
+//////////////////////////
+// 
+/////////////////////////
+// parameters declaration
+        
+// ----- ----- ---- ----- Notes 
+   
+// values related to notes
+const PADS                  = 64;
+const ROWS                  = 8;
+const COLUMNS               = 8;
+const PAD_FIRST_NOTE        = 36;
+
+type notePadFlat     = array [0..PADS-1] of integer;
+type notePadFlatMidi = array [0..PADS-1] of tMidi;
+
+type Segment = Record
+  start : Integer;
+  stop  : Integer;
+end;
+
+type Segments8Array = array [0..7] of Segment;
+
+type PadColor = Record
+    Name  : String;
+    Value : Integer;
+end;
+
+type PadState = Record
+	midi  : tMidi;
+	color : PadColor;
+	note  : Integer;
+end;
+
+type InputTriad = Record
+    Name  : String;
+    Value : Integer;
+    param : tParameter;
+end;
+
+type RotaryRecord = Record
+    Name     : String;
+    ccIn     : Integer;
+    ccOut    : Integer;
+    relParam : tParameter;
+    param    : tParameter;
+    midi     : tMidi;
+    sendMidi : Boolean;
+end;
+
+type rotaryRecordArray     = array [0..9] of RotaryRecord;
+type touchRotaryArray      = array [0..9] of InputTriad;
+type notePadStateArray     = array [0..PADS-1] of PadState;
+ 
+type sysexLCDLine           = array [0..67] of integer; // 68 characters per line
+type sysexLCDPrefix         = array [0..6] of integer; // 7 integer prefix code per line
+type sysexLCDPrefixes       = array [0..4] of sysexLCDPrefix;
+type sysexLCD               = array [0..3] of sysexLCDLine; // 4 lines per Push :)
+
+type LCDInputArray          = array [0..3] of tParameter;
+type LCD8InputArray         = array [0..7] of tParameter;
+
+// modulation options
+const PITCH_BEND            = 12; // sends PB data too
+const TOUCH_ENCODER_TEMPO   = 10;
+const TOUCH_ROTARY_QUANTIZE = 9;
+const TOUCH_ROTARY_1        = 0;
+const TOUCH_ROTARY_2        = 1;
+const TOUCH_ROTARY_3        = 2;   
+const TOUCH_ROTARY_4        = 3;
+const TOUCH_ROTARY_5        = 4;   
+const TOUCH_ROTARY_6        = 5;   
+const TOUCH_ROTARY_7        = 6;   
+const TOUCH_ROTARY_8        = 7;   
+const TOUCH_ROTARY_VOLUME   = 8;   
+                       
+// ----- ----- ---- ----- CCs  
+                               
+// playback control
+const PLAY                  = 85;
+const RECORD_               = 86; // RECORD seems to be a keyword
+const TAP_TEMPO             = 3;
+const METRONOME             = 9;   
+const ROTARY_QUANTIZE       = 15;
+const ENCODER_TEMPO         = 14; 
+
+                                  
+// quantization buttons
+const QUARTER               = 36;
+const QUARTER_TRIPLET       = 37;
+const EIGHTH                = 38;
+const EIGHTH_TRIPLET        = 39;
+const SIXTEENTH             = 40;
+const SIXTEENTH_TRIPLET     = 41;
+const THIRTY_SECOND         = 42;
+const THIRTY_SECOND_TRIPLET = 43;
+
+// surface modifier keys    
+const OCTAVE_UP             = 54;
+const OCTAVE_DOWN           = 55;
+const REPEAT_               = 56; // same with REPEAT
+const ACCENT                = 57;
+const SCALES                = 58;
+const USER                  = 59;
+const MUTE                  = 60;
+const SOLO                  = 61;
+
+// display mode keys
+const BROWSE_FORWARD        = 62;
+const BROWSE_BACK           = 63;
+const DEVICE                = 110;
+const BROWSE                = 111;
+const RACK                  = 112;
+const CLIP                  = 113;
+const VOLUME                = 114; 
+const PAN_SEND              = 115;
+const MASTER                = 28;
+const STOP                  = 29;
+                    
+// modifier pads 
+// ---- row 1: 20 - 27
+// ---- row 2: 102 - 109
+ 
+// arrow keys
+const ARROW_LEFT            = 44; 
+const ARROW_RIGHT           = 45;             
+const ARROW_UP              = 46;
+const ARROW_DOWN            = 47;
+
+// clip management                            
+const NEW_                  = 87;
+const DUPLICATE             = 88; 
+const AUTOMATION            = 89; 
+const FIXED_LENGTH          = 90;    
+const QUANTIZE              = 116;              
+const DOUBLE_               = 117; 
+const DELETE_               = 118;                        
+const UNDO                  = 119;    
+                         
+// ----- ----- ---- ----- Colors         
+
+
+const NumberOfColors         = 18;
+const NumberOfColorsCC       = 8;
+
+var ccPadColors : array [0..NumberOfColorsCC-1] of PadColor;
+const ccHALF                 = 1;     
+const ccHALF_BLINK_SLOW      = 2;
+const ccHALF_BLINK_FAST      = 3;
+const ccFULL                 = 4;
+const ccFULL_BLINK_SLOW      = 5; 
+const ccFULL_BLINK_FAST      = 6;   
+const ccOFF                  = 0;   
+const ccON                   = 127;   
+                                                  
+var padColors,padColorsOff : array [0..NumberOfColors-1] of PadColor; 
+const BLACK_ 		     = 0;
+const DARK_GREY 	     = 1;
+const GREY 		     = 2;
+const WHITE_ 		     = 3;
+const RED_ 		     = 5;
+const AMBER 		     = 9;
+const YELLOW_ 		     = 13;
+const LIME 		     = 17;
+const GREEN_ 		     = 21;
+const SPRING 		     = 25;
+const TURQUOISE 	     = 29;
+const CYAN_ 		     = 33;
+const SKY 		     = 37;
+const OCEAN 		     = 41;
+const BLUE_ 		     = 45;
+const ORCHID 		     = 49;
+const MAGENTA_ 		     = 3;
+const PINK 		     = 57;
+
+var scenePadColors : array [0..NumberOfColors-1] of PadColor;
+const scGREEN                = 22;
+const scGREEN_HALF           = 19;
+const scGREEN_BLINK_SLOW     = 23;
+const scGREEN_BLINK_FAST     = 24;
+const scRED                  = 4;
+const scRED_HALF             = 1;
+const scRED_BLINK_SLOW       = 5;
+const scRED_BLINK_FAST       = 6;
+const scYELLOW               = 16;
+const scYELLOW_HALF          = 13;
+const scYELLOW_BLINK_SLOW    = 17;
+const scYELLOW_BLINK_FAST    = 18;
+const scAMBER                = 10;
+const scAMBER_HALF           = 7;
+const scAMBER_BLINK_SLOW     = 11;
+const scAMBER_BLINK_FAST     = 12;
+const scOFF 		     = 0;
+const scON                   = 127;
+
+// ----- ----- ----- ----- LCD Related
+const LINE_1  = 24;
+const LINE_2  = 25;
+const LINE_3  = 26;
+const LINE_4  = 27;
+
+// ----- ----- ----- ----- Parameters         
+var clearPads, midiOut, notePads			
+					: tParameter;
+
+var 	padColorsOutText, padColorsOffOutText,
+	scenePadColorsOutText,
+	ccPadColorsOutText			: tParameter;
+
+var 	padColorsOut, padColorsOffOut,
+	scenePadColorsOut,
+	ccPadColorsOut			: tParameter;
+
+var s 					: String;
+var n					: Integer;
+
+
+var touchRotaries	: touchRotaryArray;
+var rotaryArray   : rotaryRecordArray;
+
+var midiIn		: tParameter;
+var sysex     : tParameter;
+
+var LCDIn     : LCDInputArray;
+var LCDIn8    : LCD8InputArray;
+procedure setupLCDInputs;
+var n : integer;
+begin
+  for n:=0 to 3
+  do begin
+    LCDIn[n] := createParam( 'LCD line '+inttostr(n+1), ptTextfield );
+//    setIsOutput( LCDIn[n],false );
+  end;
+  setIsSeparator( LCDIn[0],true );
+
+  for n:=0 to 3
+  do begin
+    LCDIn8[n] := createParam( 'LCD 8 line '+inttostr(n+1), ptTextfield );
+//    setIsOutput( LCDIn8[n],false );
+  end;
+  setIsSeparator( LCDIn8[0],true );
+end;
+
+procedure setupTouchRotaryArray;
+begin
+	touchRotaries[0].name    := 'touch rotary 1';
+	touchRotaries[0].value   := TOUCH_ROTARY_1;
+	touchRotaries[1].name    := 'touch rotary 2';
+	touchRotaries[1].value   := TOUCH_ROTARY_2;
+	touchRotaries[2].name    := 'touch rotary 3';
+	touchRotaries[2].value   := TOUCH_ROTARY_3;
+	touchRotaries[3].name    := 'touch rotary 4';
+	touchRotaries[3].value   := TOUCH_ROTARY_4;
+	touchRotaries[4].name    := 'touch rotary 5';
+	touchRotaries[4].value   := TOUCH_ROTARY_5;
+	touchRotaries[5].name    := 'touch rotary 6';
+	touchRotaries[5].value   := TOUCH_ROTARY_6;
+	touchRotaries[6].name    := 'touch rotary 7';
+	touchRotaries[6].value   := TOUCH_ROTARY_7;
+	touchRotaries[7].name    := 'touch rotary 8';
+	touchRotaries[7].value   := TOUCH_ROTARY_8;
+	touchRotaries[8].name    := 'touch rotary volume';
+	touchRotaries[8].value   := TOUCH_ROTARY_VOLUME;
+	touchRotaries[9].name    := 'touch encoder tempo';
+	touchRotaries[9].value   := TOUCH_ENCODER_TEMPO;
+	touchRotaries[10].name   := 'touch rotary quantize';
+	touchRotaries[10].value  := TOUCH_ROTARY_QUANTIZE;
+
+  for n:=0 to 10
+  do begin
+    rotaryArray[n].name := copy(touchRotaries[n].name,7,length(touchRotaries[n].name)-5);
+
+    if( n < 9 ) // for the 9 top rotaries, count starts from 0 and ends at 8
+    then begin
+      rotaryArray[n].ccIn := touchRotaries[n].value + 71; // last value will be 79
+    end
+    else if( n >= 9 )
+    then begin
+      rotaryArray[n].ccIn := 14 + (n-9); 
+    end;
+
+    rotaryArray[n].param := createParam( rotaryArray[n].name, ptDataField );
+//    setIsInput(rotaryArray[n].param,false);
+  end;
+  setIsSeparator(rotaryArray[0].param,true);
+
+  for n:=0 to 10
+  do begin
+    rotaryArray[n].relParam := createParam( rotaryArray[n].name + ' rel', ptDataField );
+//    setIsInput(rotaryArray[n].relParam,false);
+  end;
+  setIsSeparator(rotaryArray[0].relParam,true);
+
+	for n:=0 to 10
+	do begin
+		touchRotaries[n].param := createParam( touchRotaries[n].name, ptButton );
+		setIsInput(touchRotaries[n].param, false);
+	end
+  setIsSeparator(touchRotaries[0].param,true);
+
+end
+
+procedure setupPadColors;
+begin
+	padColors[0].name   := 'Dark Grey';
+	padColors[0].value  := DARK_GREY;
+	padColors[1].name   := 'Black';
+	padColors[1].value  := BLACK_;
+	padColors[2].name   := 'Grey';
+	padColors[2].value  := GREY;
+	padColors[3].name   := 'White';
+	padColors[3].value  := WHITE_;
+	padColors[4].name   := 'Red';
+	padColors[4].value  := RED_;
+	padColors[5].name   := 'Amber';
+	padColors[5].value  := AMBER;
+	padColors[6].name   := 'Yellow';
+	padColors[6].value  := YELLOW_;
+	padColors[7].name   := 'Lime';
+	padColors[7].value  := LIME;
+	padColors[8].name   := 'Green';
+	padColors[8].value  := GREEN_;
+	padColors[9].name   := 'Spring';
+	padColors[9].value  := SPRING;
+	padColors[10].name  := 'Turqoise';
+	padColors[10].value := TURQUOISE;
+	padColors[11].name  := 'Cyan';
+	padColors[11].value := CYAN_;
+	padColors[12].name  := 'Sky';
+	padColors[12].value := SKY;
+	padColors[13].name  := 'Ocean';
+	padColors[13].value := OCEAN;
+	padColors[14].name  := 'Blue';
+	padColors[14].value := BLUE_;
+	padColors[15].name  := 'Orchid';
+	padColors[15].value := ORCHID;
+	padColors[16].name  := 'Magenta';
+	padColors[16].value := MAGENTA_;
+	padColors[17].name  := 'Pink';
+	padColors[17].value := PINK;
+
+	padColorsOut	:= createParam('pad colors ON', ptArray);
+	padColorsOutText      := createParam('pad colors ON text', ptTextfield);
+	setIsSeparator(padColorsOut,true);
+	setIsInput(padColorsOutText,false);
+	setIsInput(padColorsOut,false);
+
+	padColorsOffOut	:= createParam('pad colors OFF', ptArray);
+	padColorsOffOutText   := createParam('pad colors OFF text', ptTextfield);
+	setIsSeparator(padColorsOffOut,true);
+	setIsInput(padColorsOffOut,false);
+	setIsInput(padColorsOffOutText,false);
+
+	setLength(padColorsOut,numberOfColors);
+	for n:=0 to numberOfColors-1
+	do begin
+		if n=0
+		then begin
+			s := padColors[0].name;
+			setDataArrayValue(padColorsOut,0,padColors[0].value);
+		end
+		else begin
+			s:= s + ',' + padColors[n].name;
+			setDataArrayValue(padColorsOut,n,padColors[n].value);
+		end;
+	end;
+	setStringValue(padColorsOutText,s);
+
+	setLength(padColorsOffOut,numberOfColors);
+	for n:=0 to numberOfColors-1
+	do begin
+		if n=0
+		then begin
+			s := padColors[0].name + ' [Off]';
+			setDataArrayValue(padColorsOffOut,0,padColors[0].value+2);
+		end
+		else begin
+			s:= s + ',' + padColors[n].name + ' [Off]';
+			setDataArrayValue(padColorsOffOut,n,padColors[n].value+2);
+		end;
+	end;
+	setStringValue(padColorsOffOutText,s);
+end;
+
+procedure setupScenePadColors;
+begin
+	scenePadColors[0].name   := 'Green';
+	scenePadColors[0].value  := scGREEN;
+	scenePadColors[1].name   := 'Green/Half';
+	scenePadColors[1].value  := scGREEN_HALF;
+	scenePadColors[2].name   := 'Green/Blink Slow';
+	scenePadColors[2].value  := scGREEN_BLINK_SLOW;
+	scenePadColors[3].name   := 'Green/Blink Fast';
+	scenePadColors[3].value  := scGREEN_BLINK_FAST;
+	scenePadColors[4].name   := 'Red';
+	scenePadColors[4].value  := scRED;
+	scenePadColors[5].name   := 'Red/Half';
+	scenePadColors[5].value  := scRED_HALF;
+	scenePadColors[6].name   := 'Red/Blink Slow';
+	scenePadColors[6].value  := scRED_BLINK_SLOW;
+	scenePadColors[7].name   := 'Red/Blink Fast';
+	scenePadColors[7].value  := scRED_BLINK_FAST;
+	scenePadColors[8].name   := 'Yellow';
+	scenePadColors[8].value  := scYELLOW;
+	scenePadColors[9].name   := 'Yellow/Half';
+	scenePadColors[9].value  := scYELLOW_HALF;
+	scenePadColors[10].name  := 'Yellow/Blink Slow';
+	scenePadColors[10].value := scYELLOW_BLINK_SLOW;
+	scenePadColors[11].name  := 'Yellow/Blink Fast';
+	scenePadColors[11].value := scYELLOW_BLINK_FAST;
+	scenePadColors[12].name  := 'Amber';
+	scenePadColors[12].value := scAMBER;
+	scenePadColors[13].name  := 'Amber/Half';
+	scenePadColors[13].value := scAMBER_HALF;
+	scenePadColors[14].name  := 'Amber/Blink Slow';
+	scenePadColors[14].value := scAMBER_BLINK_SLOW;
+	scenePadColors[15].name  := 'Amber/Blink Fast';
+	scenePadColors[15].value := scAMBER_BLINK_FAST;
+	scenePadColors[16].name  := 'Off';
+	scenePadColors[16].value := scOFF;
+	scenePadColors[17].name  := 'On';
+	scenePadColors[17].value := scON;
+
+	scenePadColorsOut := createParam('scene pad colors', ptArray);
+	setIsInput(scenePadColorsOut,false);
+	setIsSeparator(scenePadColorsOut,true);
+	scenePadColorsOutText := createParam('scene pad colors text', ptTextfield);
+	setIsInput(scenePadColorsOutText,false);
+
+	setLength(scenePadColorsOut,numberOfColors);
+	for n:=0 to numberOfColors-1
+	do begin
+		if n=0
+		then begin
+			s := scenePadColors[0].name;
+			setDataArrayValue(scenePadColorsOut,0,scenePadColors[0].value);
+		end
+		else begin
+			s:= s + ',' + scenePadColors[n].name;
+			setDataArrayValue(scenePadColorsOut,n,scenePadColors[n].value);
+		end;
+	end;
+	setStringValue(scenePadColorsOutText,s);
+end;
+
+procedure setupCCPadColors;
+begin
+	ccPadColors[0].name  := 'HALF';
+	ccPadColors[0].value := ccHALF;
+	ccPadColors[1].name  := 'HALF_BLINK_SLOW';
+	ccPadColors[1].value := ccHALF_BLINK_SLOW;
+	ccPadColors[2].name  := 'HALF_BLINK_FAST';
+	ccPadColors[2].value := ccHALF_BLINK_FAST;
+	ccPadColors[3].name  := 'FULL';
+	ccPadColors[3].value := ccFULL;
+	ccPadColors[4].name  := 'FULL_BLINK_SLOW';
+	ccPadColors[4].value := ccFULL_BLINK_SLOW;
+	ccPadColors[5].name  := 'FULL_BLINK_FAST';
+	ccPadColors[5].value := ccFULL_BLINK_FAST;
+	ccPadColors[6].name  := 'OFF';
+	ccPadColors[6].value := ccOFF;
+	ccPadColors[7].name  := 'ON';
+	ccPadColors[7].value := ccON;  
+	
+	setLength(ccPadColorsOut,numberOfColors);
+	for n:=0 to numberOfColorsCC-1
+	do begin
+		if n=0
+		then begin
+			s := ccPadColors[0].name;
+			setDataArrayValue(ccPadColorsOut,0,ccPadColors[0].value);
+		end
+		else begin
+			s:= s + ',' + ccPadColors[n].name;
+			setDataArrayValue(ccPadColorsOut,n,ccPadColors[n].value);
+		end;
+	end;
+	setStringValue(ccPadColorsOutText,s);
+
+	ccPadColorsOut := createParam('cc pad colors', ptArray);
+	setIsInput(ccPadColorsOut,false);
+	setIsSeparator(ccPadColorsOut,true);
+
+	ccPadColorsOutText := createParam('cc pad colors text', ptTextfield);
+	setIsInput(ccPadColorsOutText,false);
+end;
+
+var llamas : tParameter;
+var lcdPrefix : sysexLCDPrefixes;
+var lcd : sysexLCD;
+
+function LCDPrefixGen( const LINE_NUMBER: integer): sysexLCDPrefix;
+begin
+  result[0] := 71;
+  result[1] := 127;
+  result[2] := 21;
+  result[3] := LINE_NUMBER;
+  result[4] := 0;
+  result[5] := 69;
+  result[6] := 0;
+end;
+
+var Segments8 : Segments8Array;
+
+// this is not an 'algorithm' per se, just trial and error till it worked
+// on further reflection it seems to have some fibonacci-like properties.
+procedure setupLCDSegments8;
+var start,stop,n,notFirst,addSpace: integer;
+begin
+  for n:=0 to 7
+  do begin
+    notFirst := 1;
+    if( n = 0)
+    then begin
+      notFirst := 0;
+    end;
+  
+    if( n > 2 )
+    then begin
+      addSpace := 1 + (n MOD 2);
+  
+      if( n = 3 )
+      then begin
+        addSpace := 1;
+      end
+      else if( n > 5 )
+      then begin
+        addSpace := addSpace + 1;
+      end;
+    end
+    else begin
+      addSpace := 0;
+    end;
+  
+    if( n>0 )
+    then begin
+      start := (n * 7) + (n+notFirst) + addSpace; // n represents how many have been skipped already?
+    end
+    else begin
+      start := 0;
+    end;
+    stop  := start + 7;
+
+    // i also had a bad index adjustment in the writeLCDLine procedures,
+    // so this calculation needs to be re-examined.
+    Segments8[n].start := start;
+    Segments8[n].stop  := stop;
+  end;
+end;
+
+procedure blankLineArray( const LINE_NUMBER : integer );
+var l : integer;
+begin
+  for l:=0 to 67
+  do begin
+    lcd[LINE_NUMBER][l] := ord(' ');
+  end;
+end;
+
+procedure writeLCDLine( const LINE_NUMBER: integer; const LCDTEXT: string );
+var n,l : integer;
+var c : char;
+begin
+  l := length(LCDTEXT);
+  if( l > 68 )
+  then begin
+    writeln('WARNING! LCD line text cannot be more than 68 characters. Only first 68 characters will be shown.'); 
+  end
+  else begin
+//    setLength( sysex, 0 );
+    blankLineArray( LINE_NUMBER );
+    writeln('Writing to '+inttostr(LINE_NUMBER)+': '+LCDTEXT);
+    for n:=0 to l-1
+    do begin
+      c := LCDTEXT[n+1];
+      lcd[LINE_NUMBER][n] := ord( c );
+    end;
+
+    setLength( sysex, 75 );
+    for n:=0 to 74
+    do begin
+      if( n<7 )
+      then begin
+        setDataArrayValue( sysex, n, lcdPrefix[LINE_NUMBER][n] );
+      end
+      else begin
+        setDataArrayValue( sysex, n, lcd[LINE_NUMBER][n-7] ); // n is 6 ahead of correct index value
+      end;
+    end;
+  end;
+
+end;
+
+procedure writeLCDSegments8( const LINE_NUMBER, SEGMENT: integer; const LCDTEXT: string );
+var start,stop,l : integer;
+var c : char;
+begin
+  l := length(LCDTEXT);
+  if( l > 8 )
+  then begin
+    writeln('WARNING! Text for 8 segment LCD cannot be more than 8 characters. Please fix segment '+inttostr(SEGMENT)+', line '+inttostr(LINE_NUMBER));
+  end
+  else begin
+    writeln('starting '+inttostr(SEGMENT)+' on '+inttostr(start)+' until '+inttostr(stop));
+    start := Segments8[SEGMENT].start;
+    stop  := Segments8[SEGMENT].stop;
+  
+    for l:=0 to Length(LCDTEXT)-1
+    do begin
+      c :=  LCDTEXT[l+1];
+      lcd[LINE_NUMBER][l+start] := ord( c );
+    end;
+  
+    setLength( sysex, 75 );
+    for l:=0 to 74
+    do begin
+      if( l<7 )
+      then begin
+        setDataArrayValue( sysex, l, lcdPrefix[LINE_NUMBER][l] );
+      end
+      else begin
+        setDataArrayValue( sysex, l, lcd[LINE_NUMBER][l-7] ); // l is 7 ahead of correct index value
+      end;
+    end;
+  end;
+
+end;
+
+// counters...
+var l,m,o,p,pt : integer;
+
+// initialisation : create parameters
+procedure init;
+begin
+
+	midiIn	  := createParam('midi in',ptMidi);
+	setIsOutput(midiIn,false);
+
+	notePads  := createParam('notePads',ptArray);
+	setIsSeparator(notePads,true);
+
+	clearPads := createParam('clear pads',ptButton);
+
+	setupTouchRotaryArray();
+	setupPadColors();
+	setupScenePadColors();
+	setupCCPadColors();
+
+	midiOut := createParam('midi out',ptMidi);
+	setIsInput(midiOut,false);
+	setIsSeparator(midiOut,true);
+
+  setupLCDInputs;
+
+  sysex := createParam('sysex',ptArray);
+  setIsInput(sysex,false);
+  setIsSeparator(sysex,true);
+
+  llamas := createParam('llamas!!',ptButton);
+  
+  lcdPrefix[0] := LCDPrefixGen( LINE_1 );
+  lcdPrefix[1] := LCDPrefixGen( LINE_2 );
+  lcdPrefix[2] := LCDPrefixGen( LINE_3 );
+  lcdPrefix[3] := LCDPrefixGen( LINE_4 );
+
+  for o:=0 to 3
+  do begin
+    blankLineArray( o );
+  end;
+  setupLCDSegments8();
+end;
+
+
+var intInput, retInt : integer;
+var padOut1,padOut2   : notePadFlatMidi;
+
+var midiTmp,inTmp  : tMidi;
+
+
+var string1 : string;
+var c : char;
+var k : integer;
+
+// Callback procedure
+Procedure Callback(N:integer); 
+begin
+case N of
+  llamas: begin
+    if getValue(llamas)=1
+    then begin
+      string1 := 'llamas <3'; 
+
+      for l:=0 to Length(string1)-1
+      do begin
+        c :=  string1[l+1];
+        lcd[0][l] := ord( c );
+      end;
+
+      for l:=Length(string1) to 67
+      do begin
+        lcd[0][l] := ord( ' ' );
+      end;
+
+      setLength( sysex, 75 );
+      for l:=0 to 74
+      do begin
+        if( l<7 )
+        then begin
+          setDataArrayValue( sysex, l, lcdPrefix[0][l] );
+        end
+        else begin
+          setDataArrayValue( sysex, l, lcd[0][l-7] ); // l is 7 ahead of correct index value
+        end;
+      end;
+
+      writeLCDSegments8( 1, 0, 'llamas' );
+      writeLCDSegments8( 1, 1, 'llamas' );
+      writeLCDSegments8( 1, 2, 'llamas!!' );
+      writeLCDSegments8( 1, 3, 'llamas' );
+      writeLCDSegments8( 1, 4, 'llamas' );
+      writeLCDSegments8( 1, 5, 'llamas!!' );
+      writeLCDSegments8( 1, 6, 'llamas' );
+      writeLCDSegments8( 1, 7, 'llamas' );
+
+    end;
+  end;
+
+  lcdIn[0]..lcdIn[3]: begin
+    k := N-lcdIn[0];
+    writeLCDLine( k,getStringValue(lcdIn[k]) );
+  end;
+  
+  LCDIn8[0]..LCDIn8[3]: begin
+  end;
+
+	clearPads: begin
+		if getValue(clearPads)=1
+		then begin
+			for p:=0 to PADs-1
+			do begin
+				padOut1[p].msg     := 144;
+				padOut1[p].data1   := PAD_FIRST_NOTE+p;
+				padOut1[p].data2   := 0;	
+				padOut1[p].channel := 1;
+	
+				setMidiArrayValue(midiOut,p,padOut1[p]);
+			end;
+			
+			for p:=PADS to (PADS*2)-1
+			do begin
+				// need a temporary p to make this less annoying
+				pt := p-PADS;
+				padOut2[pt].msg     := 127;
+				padOut2[pt].data1   := PAD_FIRST_NOTE+pt;
+				padOut2[pt].data2   := 0;	
+				padOut2[pt].channel := 1;
+	
+				setMidiArrayValue(midiOut,p,padOut2[pt]);
+			end;
+			setLength(midiOut,PADS*2);
+		end;
+	end;
+
+	midiIn: begin
+		writeln('midi in triggered ==>');
+		l	:= getLength(midiIn);
+		if l > 0
+		then begin
+			for m:=0 to l-1
+			do begin
+				writeln('==> getting midi array value '+inttostr(m));
+				getMidiArrayValue(midiIn,m,inTmp);
+        if (inTmp.msg = 176 ) // CC
+        then begin
+  				writeln('==> looks like we are dealing with CC - '+inttostr(inTmp.msg));
+
+          // Rotaries
+  				if (inTmp.data1 >= rotaryArray[0].ccIn) and (inTmp.data1 <= rotaryArray[8].ccIn)
+          then begin
+  					o := inTmp.data1 - rotaryArray[0].ccIn;  // same as saying `inTmp.data1 - 71`
+  					writeln('== ==> midi CC value matches '+rotaryArray[o].name+' with '+inttostr(inTmp.data2));
+            setValue(rotaryArray[o].relParam, inTmp.data2);
+          end
+          else if (inTmp.data1 >= rotaryArray[9].ccIn) and (inTmp.data1 <= rotaryArray[10].ccIn)
+          then begin
+  					o := inTmp.data1 - 5;  // same as saying `(14 or 15) - 5`, this is not intuitive but it works
+  					writeln('== ==> midi CC value matches '+rotaryArray[o].name+' with '+inttostr(inTmp.data2));
+            setValue(rotaryArray[o].relParam, inTmp.data2);
+          end;
+        end
+				else if (inTmp.msg = 144) or (inTmp.msg = 128) // NOTE ON, NOTE OFF
+				then begin
+  				writeln('==> looks like we are dealing with NOTE ON or NOTE OFF - '+inttostr(inTmp.msg));
+  				if (inTmp.data1 >= touchRotaries[0].value) and (inTmp.data1 <= touchRotaries[10].value)
+  				then begin
+  					o := inTmp.data1 - touchRotaries[0].value;
+  					writeln('== ==> midi value matches rotary '+inttostr(o+1)+' with note '+inttostr(inTmp.data1));
+  					if inTmp.msg = 144
+  					then begin
+  						retInt := 1;
+  					end
+  					else begin
+  						retInt := 0;
+  					end;
+  					writeln('== ==> setting the '+inttostr(o+1)+' rotary output to '+inttostr(retInt));
+  					setValue(touchRotaries[o].param,retInt);
+  				end;
+				end;				
+			end;
+		end
+	end;
+end;			
+end;
+
+// Global variables
+
+
+// pc = process level counter, need to keep carefuly track of these
+var pc1 : Integer;
+
+//////////////////////////////
+// main proc
+//////////////////////////////
+Procedure Process;
+begin
+
+  // not sure why I had the rule for getLength(midiIn<=0),
+  // I believe it was added while debugging something that turned out
+  // unrelated 
+	if (getValue(clearPads)<1)
+	then begin
+		setLength(midiOut,0);
+	end;
+
+  if (getValue(llamas)<1) and (getLength(lcdIn[0])=0) and (getLength(lcdIn[1])=0) and (getLength(lcdIn[2])=0) and (getLength(lcdIn[3])=0)
+  then begin
+    setLength(sysex,0);
+  end;
+
+end;
+
